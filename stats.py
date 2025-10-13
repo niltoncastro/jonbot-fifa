@@ -304,7 +304,7 @@ def stats_delays_by_team(results_list):
     return detailed_data
 
 
-def stats_percentages_by_match(data, last_n=500):
+def stats_percentages_by_match(data, last_n=50):
     # Ensure the DataFrame has the required columns
     required_columns = {'time_casa', 'time_visitante', 'resultado'}
     if not required_columns.issubset(data.columns):
@@ -360,7 +360,7 @@ def stats_percentages_by_match(data, last_n=500):
     return stats
 
 
-def stats_percentages_by_team(data, last_n=500):
+def stats_percentages_by_team(data, last_n=50):
     # Ensure the DataFrame has the required columns
     required_columns = {'nome_time', 'resultado'}
 
