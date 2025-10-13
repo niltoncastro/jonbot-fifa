@@ -17,7 +17,7 @@ import gc
 from selenium.common.exceptions import WebDriverException
 
 STR_SEARCH = "live"
-TIME_SLEEP = 800
+TIME_SLEEP = 750
 
 # configuração das ligas/torneios
 TOURNAMENT_CONFIG = {
