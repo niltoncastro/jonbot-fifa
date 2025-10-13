@@ -42,7 +42,6 @@ def acessar_url(driver, url, timeout=10):
             ec.presence_of_element_located((By.TAG_NAME, "body"))
         )
     except NoSuchWindowException as e:
-        # Janela fechada → reinicialização obrigatória
         raise WebDriverException("Browsing context perdido, reiniciando driver...") from e
     except Exception as e:
         display_message(f"Timeout ou erro ao carregar página {url}: {e}")
