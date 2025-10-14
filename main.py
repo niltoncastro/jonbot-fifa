@@ -23,7 +23,7 @@ TIME_SLEEP = 750
 TOURNAMENT_CONFIG = {
     "2361937986599399439": {
         "name": "Venezuela",
-        "url": "https://jonbet.bet.br/pt/sports?bt-path=%2Ffifa%2Fvenezuela%2Fliga-futve-2361937986599399439",
+        "url": "https://jonbet.bet.br/pt/sports?bt-path=%2Fesoccer%2Fvenezuela%2Fliga-futve-2x6-min-2361937986599399439",
         "stats": False
     }
 }
@@ -111,6 +111,7 @@ def should_skip_liga_delay(tournament_id):
         elapsed = time.time() - state.last_start_time
         if elapsed < TIME_SLEEP:
             return True
+
     return False
 
 
