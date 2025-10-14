@@ -12,7 +12,6 @@ db_path = config.paths("db_path")
 
 def insert_resultado_final(codigo_partida, codigo_liga, nome_liga, time_casa, placar_casa, time_visitante,
                            placar_visitante, placar_final, resultado_partida):
-    data_partida = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     data_criacao = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     try:
@@ -21,9 +20,9 @@ def insert_resultado_final(codigo_partida, codigo_liga, nome_liga, time_casa, pl
 
         sql_insert_resultado = f"""
         INSERT INTO fifa_resultados_final (codigo_partida, codigo_liga, nome_liga, time_casa, placar_casa, time_visitante,
-                                   placar_visitante, placar_final, resultado_partida, data_partida, data_criacao)
+                                   placar_visitante, placar_final, resultado_partida, data_criacao)p
         VALUES ('{codigo_partida}', '{codigo_liga}', '{nome_liga}', '{time_casa}', {placar_casa}, '{time_visitante}',
-                 {placar_visitante}, '{placar_final}', '{resultado_partida}', '{data_partida}', '{data_criacao}')
+                 {placar_visitante}, '{placar_final}', '{resultado_partida}', '{data_criacao}')
         """
 
         cursor.execute(sql_insert_resultado)
