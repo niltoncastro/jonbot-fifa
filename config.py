@@ -1,8 +1,8 @@
-def paths(parameter):
-    mapping = {
-        "db_path": "C:/Users/junio/Desktop/workspace/database/jonbet-bot-db/jonbet-bot",
-        "fire_fox": "C:/Program Files/Mozilla Firefox/firefox.exe",
-        "file_server_local": "C:\\Users\\junio\\Desktop\\workspace\\python\\jonbot\\files\\",
-        "insert_resultado": "C:\\Users\\junio\\Desktop\\workspace\\sqls\\"
-    }
-    return mapping.get(parameter, parameter)
+import os
+
+env_type = os.getenv("ENV_TYPE", "local")  # default = local
+
+if env_type == "server":
+    from config_server import paths
+else:
+    from config_local import paths

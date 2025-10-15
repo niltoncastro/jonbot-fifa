@@ -4,11 +4,12 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 
 from datetime import datetime
+from config import paths
 
 
 def iniciar_driver(headless):
     firefox_options = Options()
-    firefox_options.binary_location = "C:/Program Files/Mozilla Firefox/firefox.exe"
+    firefox_options.binary_location = paths("fire_fox")
 
     options = Options()
     options.set_preference("permissions.default.image", 2)  # não carrega imagens
