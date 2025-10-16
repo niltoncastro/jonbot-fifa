@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 
 import utils
 from GameStateForLeague import game_states, GameState
+from config import TOURNAMENT_CONFIG
 from utils import iniciar_driver, display_message
 from stats import process_stats_match
 from stats import process_stats_team
@@ -18,15 +19,6 @@ from selenium.common.exceptions import WebDriverException
 
 STR_SEARCH = "live"
 TIME_SLEEP = 750
-
-# configuração das ligas/torneios
-TOURNAMENT_CONFIG = {
-    "2361937986599399439": {
-        "name": "Venezuela",
-        "url": "https://jonbet.bet.br/pt/sports?bt-path=%2Fesoccer%2Fvenezuela%2Fliga-futve-2x6-min-2361937986599399439",
-        "stats": False
-    }
-}
 
 
 # --- Funções auxiliares --- #

@@ -133,6 +133,8 @@ def insert_estatistica_partida(codigo_partida, time_casa, time_visitante, result
               {seq_atual}, {seq_media}, {seq_maxima}, {dif_seq_media_atual}, {dif_seq_media_max}, {atr_atual}, {atr_media},
               {atr_maximo}, {dif_atr_media_atual}, {dif_atr_media_max}, '{data_criacao}')"""
 
+        print(sql_insert_estatistica_partida)
+
         cursor.execute(sql_insert_estatistica_partida)
 
         conn.commit()

@@ -29,6 +29,9 @@ def process_stats_match(codigo_partida, time_casa, time_visitante):
     # Obter todas as combinações únicas de partidas
     unique_matches = all_results_df.groupby(["time_casa", "time_visitante"]).size().reset_index().iloc[:, :2]
 
+    print("unique_matches")
+    print(unique_matches)
+
     # Processar cada partida separadamente
     consolidated_results = []
 
@@ -305,6 +308,7 @@ def stats_delays_by_team(results_list):
 
 
 def stats_percentages_by_match(data, last_n=50):
+    print("stats_percentages_by_match")
     # Ensure the DataFrame has the required columns
     required_columns = {'time_casa', 'time_visitante', 'resultado'}
     if not required_columns.issubset(data.columns):
@@ -327,6 +331,7 @@ def stats_percentages_by_match(data, last_n=50):
 
     # Exclude the last N matches from the total statistics
     total_data = data.iloc[:-last_n]
+
     total_stats = (
         total_data.groupby(['time_casa', 'time_visitante', 'resultado'])
         .size()
@@ -357,10 +362,14 @@ def stats_percentages_by_match(data, last_n=50):
     stats['perc_parcial'] = stats['perc_parcial'].map('{:.2f}'.format)
     stats['dif_perc_total_parcial'] = stats['dif_perc_total_parcial'].map('{:.2f}'.format)
 
+    print("stats")
+    print(stats)
+
     return stats
 
 
 def stats_percentages_by_team(data, last_n=50):
+    print("stats_percentages_by_team")
     # Ensure the DataFrame has the required columns
     required_columns = {'nome_time', 'resultado'}
 
@@ -413,10 +422,13 @@ def stats_percentages_by_team(data, last_n=50):
     stats['perc_parcial'] = stats['perc_parcial'].map('{:.2f}'.format)
     stats['dif_perc_total_parcial'] = stats['dif_perc_total_parcial'].map('{:.2f}'.format)
 
+    print("stats")
+    print(stats)
     return stats
 
 
 def stats_sequences_by_match(results_list):
+    print("stats_sequences_by_match")
     global time_casa, time_visitante, match
     match_sequence_data = defaultdict(lambda: defaultdict(Counter))
 
@@ -470,10 +482,14 @@ def stats_sequences_by_match(results_list):
                 "dif_seq_media_max": dif_seq_media_max
             })
 
+    print("detailed_data")
+    print(detailed_data)
+
     return detailed_data
 
 
 def stats_sequences_by_team(results_list):
+    print("stats_sequences_by_team")
     global match, time
     match_sequence_data = defaultdict(lambda: defaultdict(Counter))
 
@@ -523,6 +539,9 @@ def stats_sequences_by_team(results_list):
                 "dif_seq_media_atual": dif_seq_media_atual,
                 "dif_seq_media_max": dif_seq_media_max
             })
+
+    print("detailed_data")
+    print(detailed_data)
 
     return detailed_data
 
