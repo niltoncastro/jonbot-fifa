@@ -23,7 +23,7 @@ TIME_SLEEP = 750
 
 # --- Funções auxiliares --- #
 # noinspection GrazieInspection
-def acessar_url(driver, url, timeout=15):
+def acessar_url(driver, url, timeout=12):
     driver.set_page_load_timeout(timeout)
     try:
         driver.get(url)
@@ -40,7 +40,7 @@ def acessar_url(driver, url, timeout=15):
         raise WebDriverException("Browsing context perdido, reiniciando driver...") from e
     except Exception as e:
         display_message(f"Timeout ou erro ao carregar página {url}: {e}")
-        raise WebDriverException(f"Não foi possível carregar a página {url}") from e
+        raise WebDriverException("driver_morto") from e
 
 
 def baixar_json_torneio(link_json, tries=2, timeout=10):
@@ -208,7 +208,22 @@ def main():
                     driver = iniciar_driver(headless=True)  # inicia apenas uma vez
                     continue
 
-                acessar_url(driver, config["url"])
+                try:
+                    acessar_url(driver, config["url"])
+                    # segue fluxo normal da liga...
+                except WebDriverException as e:
+                    msg = str(e).lower()
+                    if "driver_morto" in msg or "invalid session" in msg:
+                        display_message("Recriando o driver por falha de sessão...")
+                        try:
+                            driver.quit()
+                        except:
+                            pass
+                        driver = iniciar_driver(headless=True)  # ou False conforme seu uso
+                        # opcional: tentar acessar a URL novamente aqui se quiser
+                    else:
+                        display_message(f"Erro inesperado: {e}")
+
                 html_source = driver.page_source
 
                 content_json = get_json_content_for_league(html_source, tournament_id)
