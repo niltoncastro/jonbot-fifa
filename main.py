@@ -206,8 +206,8 @@ def main():
 
                 acessar_url(driver, config["url"])
                 html_source = driver.page_source
-                # print("html_source")
-                # print(html_source)
+                print("html_source")
+                print(html_source)
 
                 content_json = get_json_content_for_league(html_source, tournament_id)
                 #cprint("content_json")
