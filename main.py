@@ -77,9 +77,6 @@ def get_json_content_for_league(html_source, tournament_id):
         if STR_SEARCH.lower() not in href.lower():
             continue
 
-        print("href")
-        print(href)
-
         # display_message(f"Consultando API candidate: {href} para buscar tournament {tournament_id}")
         content_json = baixar_json_torneio(href)
         if not content_json:
