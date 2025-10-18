@@ -67,6 +67,8 @@ def extrair_eventos(json_content):
 # noinspection GrazieInspection
 def get_json_content_for_league(html_source, tournament_id):
     soup = BeautifulSoup(html_source, 'html.parser')
+    print("soup")
+    print(soup)
 
     for tag_link in soup.find_all('link', href=True):
         href = tag_link['href'].strip()
@@ -206,12 +208,8 @@ def main():
 
                 acessar_url(driver, config["url"])
                 html_source = driver.page_source
-                print("html_source")
-                print(html_source)
 
                 content_json = get_json_content_for_league(html_source, tournament_id)
-                #cprint("content_json")
-                #print(content_json)
 
                 if content_json:
                     processar_eventos(content_json, tournament_id, config['name'], config["stats"])
