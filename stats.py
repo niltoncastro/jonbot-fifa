@@ -3,7 +3,8 @@ from statistics import mean
 from datetime import datetime
 import pandas as pd
 from database import select_resultados_final_partida, insert_estatistica_partida, select_resultados_final_time, \
-    insert_estatistica_time
+    insert_estatistica_time, select_max_atraso_partida, select_max_atraso_time, select_max_seq_time, \
+    select_max_seq_partida
 
 # mostra todas as linhas
 pd.set_option("display.max_rows", None)
@@ -17,7 +18,6 @@ pd.set_option("display.width", None)
 # mostra todo o conteúdo da célula, sem cortar
 pd.set_option("display.max_colwidth", None)
 
-
 global time_casa, time_visitante, match, time
 
 
@@ -28,9 +28,6 @@ def process_stats_match(codigo_partida, time_casa, time_visitante):
 
     # Obter todas as combinações únicas de partidas
     unique_matches = all_results_df.groupby(["time_casa", "time_visitante"]).size().reset_index().iloc[:, :2]
-
-    print("unique_matches")
-    print(unique_matches)
 
     # Processar cada partida separadamente
     consolidated_results = []
@@ -228,10 +225,16 @@ def stats_delays_by_match(results_list):
 
             # Calcular métricas para atrasos
             current_delay = counters["current_delay"] if "current_delay" in counters else 0
+
             max_delay = max(delays) if delays else 0
+            max_delay_current = select_max_atraso_partida(time_casa, time_visitante, resultado)
+
             mean_delay = int(mean(delays)) if delays else 0
             dif_atr_media_atual = mean_delay - current_delay
             dif_atr_media_max = max_delay - mean_delay
+
+            if max_delay_current > max_delay:
+                max_delay = max_delay_current
 
             detailed_data.append({
                 "time_casa": time_casa,
@@ -290,9 +293,13 @@ def stats_delays_by_team(results_list):
             # Calcular métricas para atrasos
             current_delay = counters["current_delay"] if "current_delay" in counters else 0
             max_delay = max(delays) if delays else 0
+            max_delay_current = select_max_atraso_time(time, resultado)
             mean_delay = int(mean(delays)) if delays else 0
             dif_atr_media_atual = mean_delay - current_delay
             dif_atr_media_max = max_delay - mean_delay
+
+            if max_delay_current > max_delay:
+                max_delay = max_delay_current
 
             detailed_data.append({
                 "nome_time": time,
@@ -308,7 +315,7 @@ def stats_delays_by_team(results_list):
 
 
 def stats_percentages_by_match(data, last_n=50):
-    print("stats_percentages_by_match")
+    # print("stats_percentages_by_match")
     # Ensure the DataFrame has the required columns
     required_columns = {'time_casa', 'time_visitante', 'resultado'}
     if not required_columns.issubset(data.columns):
@@ -362,14 +369,11 @@ def stats_percentages_by_match(data, last_n=50):
     stats['perc_parcial'] = stats['perc_parcial'].map('{:.2f}'.format)
     stats['dif_perc_total_parcial'] = stats['dif_perc_total_parcial'].map('{:.2f}'.format)
 
-    print("stats")
-    print(stats)
-
     return stats
 
 
 def stats_percentages_by_team(data, last_n=50):
-    print("stats_percentages_by_team")
+    # print("stats_percentages_by_team")
     # Ensure the DataFrame has the required columns
     required_columns = {'nome_time', 'resultado'}
 
@@ -422,13 +426,11 @@ def stats_percentages_by_team(data, last_n=50):
     stats['perc_parcial'] = stats['perc_parcial'].map('{:.2f}'.format)
     stats['dif_perc_total_parcial'] = stats['dif_perc_total_parcial'].map('{:.2f}'.format)
 
-    print("stats")
-    print(stats)
     return stats
 
 
 def stats_sequences_by_match(results_list):
-    print("stats_sequences_by_match")
+    # print("stats_sequences_by_match")
     global time_casa, time_visitante, match
     match_sequence_data = defaultdict(lambda: defaultdict(Counter))
 
@@ -468,8 +470,12 @@ def stats_sequences_by_match(results_list):
             current_sequence = current_streak if resultado == last_result else 0
             mean_sequence = int(mean(sequences)) if sequences else 0
             max_sequence = max(sequences) if sequences else 0
+            max_sequence_current = select_max_seq_partida(time_casa, time_visitante, resultado)
             dif_seq_media_atual = mean_sequence - current_sequence
             dif_seq_media_max = max_sequence - mean_sequence
+
+            if max_sequence_current > max_sequence:
+                max_sequence = max_sequence_current
 
             detailed_data.append({
                 "time_casa": time_casa,
@@ -482,14 +488,12 @@ def stats_sequences_by_match(results_list):
                 "dif_seq_media_max": dif_seq_media_max
             })
 
-    print("detailed_data")
-    print(detailed_data)
 
     return detailed_data
 
 
 def stats_sequences_by_team(results_list):
-    print("stats_sequences_by_team")
+    # print("stats_sequences_by_team")
     global match, time
     match_sequence_data = defaultdict(lambda: defaultdict(Counter))
 
@@ -527,8 +531,12 @@ def stats_sequences_by_team(results_list):
             current_sequence = current_streak if resultado == last_result else 0
             mean_sequence = int(mean(sequences)) if sequences else 0
             max_sequence = max(sequences) if sequences else 0
+            max_sequence_current = select_max_seq_time(time, resultado)
             dif_seq_media_atual = mean_sequence - current_sequence
             dif_seq_media_max = max_sequence - mean_sequence
+
+            if max_sequence_current > max_sequence:
+                max_sequence = max_sequence_current
 
             detailed_data.append({
                 "nome_time": time,
@@ -539,9 +547,6 @@ def stats_sequences_by_team(results_list):
                 "dif_seq_media_atual": dif_seq_media_atual,
                 "dif_seq_media_max": dif_seq_media_max
             })
-
-    print("detailed_data")
-    print(detailed_data)
 
     return detailed_data
 

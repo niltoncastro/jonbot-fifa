@@ -1,30 +1,43 @@
+import os
+
 import requests
 
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
 
 from datetime import datetime
 from config import paths
 
 
 def iniciar_driver(headless):
-    firefox_options = Options()
-    firefox_options.binary_location = paths("fire_fox")
+    firefox_binary = paths("fire_fox")  # já vem do config_local ou config_server
 
     options = Options()
-    options.set_preference("permissions.default.image", 2)  # não carrega imagens
-    options.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", False)  # desabilita plugins
-    options.set_preference("browser.cache.disk.enable", False)  # sem cache
+    options.binary_location = firefox_binary
+
+    # Preferências para performance
+    options.set_preference("permissions.default.image", 2)
+    options.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", False)
+    options.set_preference("browser.cache.disk.enable", False)
     options.set_preference("browser.cache.memory.enable", False)
     options.set_preference("browser.cache.offline.enable", False)
     options.set_preference("network.http.use-cache", False)
-    options.add_argument("--headless")
 
+    # Headless apenas se pedido
     if headless:
-        firefox_options.add_argument("--headless")  # executa sem abrir janela
+        options.add_argument("--headless")
 
-    # Selenium Manager baixa/configura o driver automaticamente
-    driver = webdriver.Firefox(options=firefox_options)
+    env_type = os.getenv("ENV_TYPE", "local")
+
+    if env_type == "server":
+        # Usa geckodriver manualmente
+        service = Service(executable_path="/usr/local/bin/geckodriver")
+        driver = webdriver.Firefox(service=service, options=options)
+    else:
+        # Local usa Selenium Manager normal
+        driver = webdriver.Firefox(options=options)
+
     return driver
 
 

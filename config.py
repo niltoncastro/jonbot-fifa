@@ -11,6 +11,7 @@ TOURNAMENT_CONFIG = {
 
 env_type = os.getenv("ENV_TYPE", "local")  # default = local
 
+# noinspection PyUnusedImports
 if env_type == "server":
     from config_server import paths
 else:

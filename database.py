@@ -133,8 +133,6 @@ def insert_estatistica_partida(codigo_partida, time_casa, time_visitante, result
               {seq_atual}, {seq_media}, {seq_maxima}, {dif_seq_media_atual}, {dif_seq_media_max}, {atr_atual}, {atr_media},
               {atr_maximo}, {dif_atr_media_atual}, {dif_atr_media_max}, '{data_criacao}')"""
 
-        print(sql_insert_estatistica_partida)
-
         cursor.execute(sql_insert_estatistica_partida)
 
         conn.commit()
@@ -144,42 +142,120 @@ def insert_estatistica_partida(codigo_partida, time_casa, time_visitante, result
         display_message(message)
 
 
-def select_estatisticas_por_partida(time_casa, time_visitante):
+def select_max_seq_partida(time_casa, time_visitante, resultado):
     try:
         # Connect to the database
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         # SQL query to fetch data
-        query = f"""
-        SELECT 
-            time_casa AS 'Time Casa', 
-            time_visitante AS 'Time Visitante', 
-            resultado AS 'Resultado',
-            dif_perc_total_parcial AS 'Percentual', 
-            dif_perc_total_parcial_min_atual AS 'Diferenca Percentual/Minima', 
-            seq_atual AS 'Sequencia Atual', 
-            dif_seq_media_atual  AS 'Diferenca Sequencia/Media', 
-            dif_seq_media_max AS 'Diferenca Sequencia/Maxima', 
-            atr_atual AS 'Atraso Atual',
-            dif_atr_media_atual AS 'Diferenca Atraso/Media', 
-            dif_atr_media_max AS 'Diferenca Atraso/Maxima'
+        sql = f"""
+        SELECT max(seq_maxima)
         FROM fifa_estatisticas_partida
-        WHERE time_casa = ? AND time_visitante = ?
+        WHERE time_casa = '{time_casa}' AND time_visitante = '{time_visitante}' AND resultado = '{resultado}'
         ORDER BY id DESC
-        LIMIT 3
         """
 
-        # Execute the query with parameters
-        cursor.execute(query, (time_casa, time_visitante))
-        columns = [col[0] for col in cursor.description]
-        rows = cursor.fetchall()
+        # Execute query to sum 'valor_aposta' for the given 'codigo_aposta'
+        cursor.execute(sql)
 
-        # Convert results to a list of dictionaries
-        all_results = [dict(zip(columns, row)) for row in rows]
+        # Fetch the result
+        row = cursor.fetchone()
 
         conn.close()
-        return all_results
+
+        # Return the sum if it exists, otherwise return 0
+        return row[0] if row[0] is not None else 3
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return []
+
+
+def select_max_atraso_partida(time_casa, time_visitante, resultado):
+    try:
+        # Connect to the database
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # SQL query to fetch data
+        sql = f"""
+        SELECT max(atr_maximo)
+        FROM fifa_estatisticas_partida
+        WHERE time_casa = '{time_casa}' AND time_visitante = '{time_visitante}' AND resultado = '{resultado}'
+        ORDER BY id DESC
+        """
+
+        # Execute query to sum 'valor_aposta' for the given 'codigo_aposta'
+        cursor.execute(sql)
+
+        # Fetch the result
+        row = cursor.fetchone()
+
+        conn.close()
+
+        # Return the sum if it exists, otherwise return 0
+        return row[0] if row[0] is not None else 3
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return []
+
+
+def select_max_seq_time(time, resultado):
+    try:
+        # Connect to the database
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # SQL query to fetch data
+        sql = f"""
+        SELECT max(seq_maxima)
+        FROM fifa_estatisticas_time
+        WHERE time = '{time}' AND resultado = '{resultado}'
+        ORDER BY id DESC
+        """
+
+        # Execute query to sum 'valor_aposta' for the given 'codigo_aposta'
+        cursor.execute(sql)
+
+        # Fetch the result
+        row = cursor.fetchone()
+
+        conn.close()
+
+        # Return the sum if it exists, otherwise return 0
+        return row[0] if row[0] is not None else 3
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return []
+
+
+def select_max_atraso_time(time, resultado):
+    try:
+        # Connect to the database
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # SQL query to fetch data
+        sql = f"""
+        SELECT max(atr_maximo)
+        FROM fifa_estatisticas_time
+        WHERE time = '{time}' AND resultado = '{resultado}'
+        ORDER BY id DESC
+        """
+
+        # Execute query to sum 'valor_aposta' for the given 'codigo_aposta'
+        cursor.execute(sql)
+
+        # Fetch the result
+        row = cursor.fetchone()
+
+        conn.close()
+
+        # Return the sum if it exists, otherwise return 0
+        return row[0] if row[0] is not None else 3
 
     except sqlite3.Error as e:
         print(f"Database error: {e}")
@@ -203,8 +279,6 @@ def insert_estatistica_time(codigo_partida, nome_time, resultado, qtd_total, per
         """
         cursor.execute(query_percent_min)
         result = cursor.fetchall()
-
-        print("-- sql : " + query_percent_min)
 
         if result:
             dif_perc_total_parcial_min = result[0][0]  # Pega o primeiro valor da primeira linha
@@ -231,8 +305,6 @@ def insert_estatistica_time(codigo_partida, nome_time, resultado, qtd_total, per
                 {perc_parcial}, {dif_perc_total_parcial}, {dif_perc_total_parcial_min}, {dif_perc_total_parcial_min_atual}, 
                 {seq_atual}, {seq_media}, {seq_maxima}, {dif_seq_media_atual}, {dif_seq_media_max}, {atr_atual}, {atr_media}, 
                 {atr_maximo}, {dif_atr_media_atual}, {dif_atr_media_max}, '{data_criacao}') """
-
-        print(sql_insert_estatistica_time)
 
         cursor.execute(sql_insert_estatistica_time)
         conn.commit()
@@ -381,8 +453,6 @@ def update_verificacao_resultado_aposta(codigo_partida, resultado):
                     valor_saldo = {saldo},
                 WHERE codigo_partida = '{codigo_partida}'
             """
-
-            # print(sql)
 
             # Atualiza a tabela com base no resultado
             cursor.execute(sql)
@@ -674,3 +744,8 @@ def select_condicao_atraso_percentual(time_casa, time_visitante, resultado):
     except sqlite3.Error as e:
         display_message(f"Database error: {e}")
         return 0
+
+
+if __name__ == "__main__":
+    max_result = select_max_atraso_time('Caracas',  'Perdeu')
+    print(str(max_result))
