@@ -75,6 +75,8 @@ def get_json_content_for_league(html_source, tournament_id):
             continue
 
         # display_message(f"Consultando API candidate: {href} para buscar tournament {tournament_id}")
+        print("href")
+        print(href)
         content_json = baixar_json_torneio(href)
         if not content_json:
             continue
@@ -204,7 +206,12 @@ def main():
 
                 acessar_url(driver, config["url"])
                 html_source = driver.page_source
+                # print("html_source")
+                # print(html_source)
+
                 content_json = get_json_content_for_league(html_source, tournament_id)
+                #cprint("content_json")
+                #print(content_json)
 
                 if content_json:
                     processar_eventos(content_json, tournament_id, config['name'], config["stats"])
