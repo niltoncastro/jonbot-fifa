@@ -23,16 +23,19 @@ TIME_SLEEP = 750
 
 # --- Funções auxiliares --- #
 # noinspection GrazieInspection
-def acessar_url(driver, url, timeout=10):
-    """
-    Abre a URL e aguarda o body. Se a janela for perdida, levanta exceção controlada.
-    """
+def acessar_url(driver, url, timeout=15):
     driver.set_page_load_timeout(timeout)
     try:
         driver.get(url)
         WebDriverWait(driver, timeout).until(
             ec.presence_of_element_located((By.TAG_NAME, "body"))
         )
+        try:
+            WebDriverWait(driver, timeout).until(
+                ec.presence_of_element_located((By.TAG_NAME, "script"))
+            )
+        except:
+            display_message(f"Scripts ainda não carregaram totalmente em {url}")
     except NoSuchWindowException as e:
         raise WebDriverException("Browsing context perdido, reiniciando driver...") from e
     except Exception as e:
@@ -67,8 +70,6 @@ def extrair_eventos(json_content):
 # noinspection GrazieInspection
 def get_json_content_for_league(html_source, tournament_id):
     soup = BeautifulSoup(html_source, 'html.parser')
-    print("soup")
-    print(soup)
 
     for tag_link in soup.find_all('link', href=True):
         href = tag_link['href'].strip()
@@ -76,9 +77,10 @@ def get_json_content_for_league(html_source, tournament_id):
         if STR_SEARCH.lower() not in href.lower():
             continue
 
-        # display_message(f"Consultando API candidate: {href} para buscar tournament {tournament_id}")
         print("href")
         print(href)
+
+        # display_message(f"Consultando API candidate: {href} para buscar tournament {tournament_id}")
         content_json = baixar_json_torneio(href)
         if not content_json:
             continue

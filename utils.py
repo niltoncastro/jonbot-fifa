@@ -11,10 +11,8 @@ from config import paths
 
 
 def iniciar_driver(headless):
-    firefox_binary = paths("fire_fox")  # já vem do config_local ou config_server
-
     options = Options()
-    options.binary_location = firefox_binary
+    options.binary_location = paths("fire_fox")
 
     # Preferências para performance
     options.set_preference("permissions.default.image", 2)
@@ -27,19 +25,22 @@ def iniciar_driver(headless):
     # Headless apenas se pedido
     if headless:
         options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
 
-    env_type = os.getenv("ENV_TYPE", "local")
+    env_type = os.getenv("ENV_TYPE", "local")  # default = local
 
     if env_type == "server":
-        # Usa geckodriver manualmente
+        # Caminho fixo do geckodriver no servidor
         service = Service(executable_path="/usr/local/bin/geckodriver")
         driver = webdriver.Firefox(service=service, options=options)
     else:
-        # Local usa Selenium Manager normal
+        # Local usa Selenium Manager automaticamente
         driver = webdriver.Firefox(options=options)
 
+    driver.set_page_load_timeout(30)
     return driver
-
 
 def display_message(message):
     """Exibe mensagens formatadas com a data e hora."""
