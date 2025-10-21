@@ -4,3 +4,4 @@ def paths(parameter):
         "fire_fox": "/usr/bin/firefox",  # ou o caminho real encontrado
     }
     return mapping.get(parameter, parameter)
+

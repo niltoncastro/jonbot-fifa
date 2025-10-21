@@ -1,5 +1,4 @@
 import sqlite3
-from datetime import datetime
 
 import config
 from utils import display_message
@@ -12,7 +11,7 @@ db_path = config.paths("db_path")
 
 def insert_resultado_final(codigo_partida, codigo_liga, nome_liga, time_casa, placar_casa, time_visitante,
                            placar_visitante, placar_final, resultado_partida):
-    data_criacao = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    data_criacao = config.data_hora_format()
 
     try:
         conn = sqlite3.connect(db_path)
@@ -370,7 +369,7 @@ def select_estatisticas_por_time():
 def insert_aposta(tipo_aposta, time_casa, time_visitante, codigo_partida, aposta_partida, multiplicador):
     # print("entrou insert_aposta")
 
-    data_criacao = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    data_criacao = config.data_hora_format()
 
     # Verifica se ja existe aposta em aberto para a partida
     aposta_aberta = select_aposta_aberta(time_casa, time_visitante, aposta_partida)

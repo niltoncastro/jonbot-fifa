@@ -1,7 +1,8 @@
 from collections import defaultdict, Counter
 from statistics import mean
-from datetime import datetime
 import pandas as pd
+
+from config import data_hora_format
 from database import select_resultados_final_partida, insert_estatistica_partida, select_resultados_final_time, \
     insert_estatistica_time, select_max_atraso_partida, select_max_atraso_time, select_max_seq_time, \
     select_max_seq_partida
@@ -64,7 +65,7 @@ def process_stats_match(codigo_partida, time_casa, time_visitante):
         )
 
         # Adicionar coluna de data_criacao
-        consolidated["data_criacao"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        consolidated["data_criacao"] = data_hora_format()
         consolidated_results.append(consolidated)
 
     # Concatenar os resultados de todas as partidas
@@ -140,7 +141,7 @@ def process_stats_team(codigo_partida, nome_time):
     )
 
     # Adicionar coluna de data_criacao
-    consolidated["data_criacao"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    consolidated["data_criacao"] = data_hora_format()
 
     # Remover duplicatas antes de consolidar
     consolidated = consolidated.drop_duplicates()
@@ -487,7 +488,6 @@ def stats_sequences_by_match(results_list):
                 "dif_seq_media_atual": dif_seq_media_atual,
                 "dif_seq_media_max": dif_seq_media_max
             })
-
 
     return detailed_data
 

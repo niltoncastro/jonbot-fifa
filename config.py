@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta
 
 # configuração das ligas/torneios
 TOURNAMENT_CONFIG = {
@@ -14,5 +15,13 @@ env_type = os.getenv("ENV_TYPE", "local")  # default = local
 # noinspection PyUnusedImports
 if env_type == "server":
     from config_server import paths
+
+    def data_hora_format():
+        data_hora = datetime.now() - timedelta(hours=5)
+        return data_hora.strftime('%Y-%m-%d %H:%M:%S')
+
 else:
     from config_local import paths
+
+    def data_hora_format():
+        return datetime.now().strftime('%Y-%m-%d %H:%M:%S')

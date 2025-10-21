@@ -42,6 +42,7 @@ def iniciar_driver(headless):
     driver.set_page_load_timeout(30)
     return driver
 
+
 def display_message(message):
     """Exibe mensagens formatadas com a data e hora."""
     current_time = datetime.now().strftime('%Y%m%d%H%M%S')

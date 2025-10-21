@@ -1,3 +1,4 @@
+
 def paths(parameter):
     mapping = {
         "db_path": "C:/Users/junio/Desktop/workspace/database/jonbet-bot-db/jonbet-bot",
