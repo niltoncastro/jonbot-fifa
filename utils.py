@@ -11,81 +11,36 @@ from config import paths
 
 
 def iniciar_driver(headless):
+    options = Options()
+    options.binary_location = paths("fire_fox")
+
+    # Preferências para performance
+    options.set_preference("permissions.default.image", 2)
+    options.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", False)
+    options.set_preference("browser.cache.disk.enable", False)
+    options.set_preference("browser.cache.memory.enable", False)
+    options.set_preference("browser.cache.offline.enable", False)
+    options.set_preference("network.http.use-cache", False)
+
+    # Headless apenas se pedido
+    if headless:
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+
     env_type = os.getenv("ENV_TYPE", "local")  # default = local
 
-    # ===============================
-    # 🟩 SERVIDOR → CHROME (HEADLESS)
-    # ===============================
     if env_type == "server":
-        from selenium import webdriver
-        from selenium.webdriver.chrome.service import Service
-        from selenium.webdriver.chrome.options import Options
-        from webdriver_manager.chrome import ChromeDriverManager
-
-        options = Options()
-
-        # ESSENCIAIS PARA VPS
-        options.add_argument("--headless=new")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--disable-features=VizDisplayCompositor")
-        options.add_argument("--disable-features=IsolateOrigins,site-per-process")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-
-        # Evita travamentos
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--start-maximized")
-        options.add_argument("--disable-infobars")
-
-        # Faz o Chrome renderizar páginas pesadas sem travar
-        options.add_argument("--remote-debugging-port=9222")
-
-        # Usa menos memória
-        options.add_argument("--single-process")
-        options.add_argument("--disable-dev-shm-usage")
-
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options
-        )
-        driver.set_page_load_timeout(30)
-        driver.implicitly_wait(10)
-        return driver
-
-    # ===============================
-    # 🟦 LOCAL → FIREFOX
-    # ===============================
+        # Caminho fixo do geckodriver no servidor
+        service = Service(executable_path="/usr/local/bin/geckodriver")
+        driver = webdriver.Firefox(service=service, options=options)
     else:
-        from selenium.webdriver.firefox.options import Options
-        from selenium.webdriver.firefox.service import Service
-        from selenium import webdriver
-
-        options = Options()
-        options.binary_location = paths("fire_fox")
-
-        # Preferências para performance
-        options.set_preference("permissions.default.image", 2)
-        options.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", False)
-        options.set_preference("browser.cache.disk.enable", False)
-        options.set_preference("browser.cache.memory.enable", False)
-        options.set_preference("browser.cache.offline.enable", False)
-        options.set_preference("network.http.use-cache", False)
-
-        # Local headless opcional
-        if headless:
-            options.add_argument("--headless")
-            options.add_argument("--disable-gpu")
-            options.add_argument("--no-sandbox")
-            options.add_argument("--disable-dev-shm-usage")
-            options.set_preference("general.useragent.override",
-                                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
-
-        # Firefox local usa Selenium Manager automaticamente
+        # Local usa Selenium Manager automaticamente
         driver = webdriver.Firefox(options=options)
-        driver.set_page_load_timeout(30)
-        return driver
+
+    driver.set_page_load_timeout(30)
+    return driver
 
 
 def display_message(message):
