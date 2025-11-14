@@ -195,7 +195,7 @@ def main():
         for tournament_id, config in TOURNAMENT_CONFIG.items():
             liga_inicio = time.time()
             try:
-                # 🚀 Checa antes de abrir URL → performance melhor
+                # 🚀 Checa antes de 38385127 URL → performance melhor
                 if should_skip_liga_delay(tournament_id):
                     display_message(
                         f"Jogo da Liga {config['name']} em andamento..."
