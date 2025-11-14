@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from selenium.common.exceptions import NoSuchWindowException
+from selenium.common.exceptions import NoSuchWindowException, InvalidSessionIdException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.by import By
@@ -23,24 +23,59 @@ TIME_SLEEP = 750
 
 # --- Funções auxiliares --- #
 # noinspection GrazieInspection
-def acessar_url(driver, url, timeout=12):
-    driver.set_page_load_timeout(timeout)
-    try:
-        driver.get(url)
-        WebDriverWait(driver, timeout).until(
-            ec.presence_of_element_located((By.TAG_NAME, "body"))
-        )
+def acessar_url(driver, url, timeout=10, tentativas=2):
+    """
+    Abre a URL e aguarda carregamento real da página.
+    Verifica body + scripts.
+    Se driver travar (session lost), levanta erro para recriação externa.
+    """
+
+    for tentativa in range(1, tentativas + 1):
+
         try:
+            driver.set_page_load_timeout(timeout)
+
+            # ---- Tenta abrir a página ----
+            driver.get(url)
+
+            # ---- Aguarda <body> ----
             WebDriverWait(driver, timeout).until(
-                ec.presence_of_element_located((By.TAG_NAME, "script"))
+                ec.presence_of_element_located((By.TAG_NAME, "body"))
             )
-        except:
-            display_message(f"Scripts ainda não carregaram totalmente em {url}")
-    except NoSuchWindowException as e:
-        raise WebDriverException("Browsing context perdido, reiniciando driver...") from e
-    except Exception as e:
-        display_message(f"Timeout ou erro ao carregar página {url}: {e}")
-        raise WebDriverException("driver_morto") from e
+
+            # ---- Aguarda scripts carregarem ----
+            try:
+                WebDriverWait(driver, timeout).until(
+                    ec.presence_of_element_located((By.TAG_NAME, "script"))
+                )
+            except:
+                display_message(f"⚠️ Scripts incompletos em {url} (tentativa {tentativa}/{tentativas})")
+
+            return True  # Sucesso!
+
+        # ============================
+        # ❌ Sessão perdida → precisa recriar driver
+        # ============================
+        except (InvalidSessionIdException, NoSuchWindowException) as e:
+            raise WebDriverException("❌ Sessão perdida — reiniciar driver") from e
+
+        # ============================
+        # ❌ Timeout / Erros recuperáveis
+        # ============================
+        except Exception as e:
+            display_message(
+                f"⚠️ Erro ao carregar {url}: {str(e)} "
+                f"(tentativa {tentativa}/{tentativas})"
+            )
+
+            # Última tentativa → falha total
+            if tentativa == tentativas:
+                raise WebDriverException(f"Falha ao carregar página após {tentativas} tentativas: {url}")
+
+            # Aguarda alguns segundos antes de tentar de novo
+            time.sleep(2)
+
+    return False
 
 
 def baixar_json_torneio(link_json, tries=2, timeout=10):

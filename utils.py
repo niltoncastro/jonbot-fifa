@@ -11,38 +11,69 @@ from config import paths
 
 
 def iniciar_driver(headless):
-    options = Options()
-    options.binary_location = paths("fire_fox")
-
-    # Preferências para performance
-    options.set_preference("permissions.default.image", 2)
-    options.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", False)
-    options.set_preference("browser.cache.disk.enable", False)
-    options.set_preference("browser.cache.memory.enable", False)
-    options.set_preference("browser.cache.offline.enable", False)
-    options.set_preference("network.http.use-cache", False)
-
-    # Headless apenas se pedido
-    if headless:
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.set_preference("general.useragent.override",
-                               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
-
     env_type = os.getenv("ENV_TYPE", "local")  # default = local
 
+    # ===============================
+    # 🟩 SERVIDOR → CHROME (HEADLESS)
+    # ===============================
     if env_type == "server":
-        # Caminho fixo do geckodriver no servidor
-        service = Service(executable_path="/usr/local/bin/geckodriver")
-        driver = webdriver.Firefox(service=service, options=options)
-    else:
-        # Local usa Selenium Manager automaticamente
-        driver = webdriver.Firefox(options=options)
+        from selenium.webdriver.chrome.options import Options as ChromeOptions
+        from selenium.webdriver.chrome.service import Service as ChromeService
+        from webdriver_manager.chrome import ChromeDriverManager
+        from selenium import webdriver
 
-    driver.set_page_load_timeout(30)
-    return driver
+        options = ChromeOptions()
+
+        options.add_argument("--headless=new")  # novo headless mais estável
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-infobars")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-popup-blocking")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--remote-debugging-port=9222")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--enable-features=NetworkService,NetworkServiceInProcess")
+
+        # Inicializa Chrome via webdriver-manager
+        service = ChromeService(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        driver.set_page_load_timeout(60)
+        return driver
+
+    # ===============================
+    # 🟦 LOCAL → FIREFOX
+    # ===============================
+    else:
+        from selenium.webdriver.firefox.options import Options
+        from selenium.webdriver.firefox.service import Service
+        from selenium import webdriver
+
+        options = Options()
+        options.binary_location = paths("fire_fox")
+
+        # Preferências para performance
+        options.set_preference("permissions.default.image", 2)
+        options.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", False)
+        options.set_preference("browser.cache.disk.enable", False)
+        options.set_preference("browser.cache.memory.enable", False)
+        options.set_preference("browser.cache.offline.enable", False)
+        options.set_preference("network.http.use-cache", False)
+
+        # Local headless opcional
+        if headless:
+            options.add_argument("--headless")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.set_preference("general.useragent.override",
+                                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+
+        # Firefox local usa Selenium Manager automaticamente
+        driver = webdriver.Firefox(options=options)
+        driver.set_page_load_timeout(30)
+        return driver
 
 
 def display_message(message):
