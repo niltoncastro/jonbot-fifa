@@ -17,29 +17,41 @@ def iniciar_driver(headless):
     # 🟩 SERVIDOR → CHROME (HEADLESS)
     # ===============================
     if env_type == "server":
-        from selenium.webdriver.chrome.options import Options as ChromeOptions
-        from selenium.webdriver.chrome.service import Service as ChromeService
-        from webdriver_manager.chrome import ChromeDriverManager
         from selenium import webdriver
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.chrome.options import Options
+        from webdriver_manager.chrome import ChromeDriverManager
 
-        options = ChromeOptions()
+        options = Options()
 
-        options.add_argument("--headless=new")  # novo headless mais estável
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
+        # ESSENCIAIS PARA VPS
+        options.add_argument("--headless=new")
         options.add_argument("--disable-gpu")
-        options.add_argument("--disable-infobars")
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-popup-blocking")
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--remote-debugging-port=9222")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+        options.add_argument("--disable-features=IsolateOrigins,site-per-process")
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--enable-features=NetworkService,NetworkServiceInProcess")
 
-        # Inicializa Chrome via webdriver-manager
-        service = ChromeService(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=options)
-        driver.set_page_load_timeout(60)
+        # Evita travamentos
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--start-maximized")
+        options.add_argument("--disable-infobars")
+
+        # Faz o Chrome renderizar páginas pesadas sem travar
+        options.add_argument("--remote-debugging-port=9222")
+
+        # Usa menos memória
+        options.add_argument("--single-process")
+        options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(
+            service=Service(ChromeDriverManager().install()),
+            options=options
+        )
+        driver.set_page_load_timeout(30)
+        driver.implicitly_wait(10)
         return driver
 
     # ===============================
