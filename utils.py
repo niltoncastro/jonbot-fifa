@@ -1,45 +1,27 @@
-import os
+from datetime import datetime
 
 import requests
-
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
-
-from datetime import datetime
-from config import paths
 
 
-def iniciar_driver(headless):
+def create_driver():
     options = Options()
-    options.binary_location = paths("fire_fox")
+    options.headless = True
 
-    # Preferências para performance
-    options.set_preference("permissions.default.image", 2)
-    options.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", False)
-    options.set_preference("browser.cache.disk.enable", False)
-    options.set_preference("browser.cache.memory.enable", False)
-    options.set_preference("browser.cache.offline.enable", False)
-    options.set_preference("network.http.use-cache", False)
+    # 🔥 Reduz uso de CPU/RAM drasticamente
+    options.set_preference("browser.tabs.remote.autostart", False)
+    options.set_preference("browser.tabs.remote.autostart.1", False)
+    options.set_preference("browser.tabs.remote.autostart.2", False)
+    options.set_preference("dom.ipc.processCount", 1)
+    options.set_preference("browser.sessionstore.resume_from_crash", False)
+    options.set_preference("browser.shell.checkDefaultBrowser", False)
+    options.set_preference("permissions.default.image", 2)  # não carrega imagens
+    options.set_preference("network.http.pipelining", True)
 
-    # Headless apenas se pedido
-    if headless:
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Firefox(options=options)
+    driver.set_page_load_timeout(20)
 
-    env_type = os.getenv("ENV_TYPE", "local")  # default = local
-
-    if env_type == "server":
-        # Caminho fixo do geckodriver no servidor
-        service = Service(executable_path="/usr/local/bin/geckodriver")
-        driver = webdriver.Firefox(service=service, options=options)
-    else:
-        # Local usa Selenium Manager automaticamente
-        driver = webdriver.Firefox(options=options)
-
-    driver.set_page_load_timeout(30)
     return driver
 
 

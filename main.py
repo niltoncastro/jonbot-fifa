@@ -1,305 +1,281 @@
+import time
+
 import requests
 from bs4 import BeautifulSoup
-from selenium.common.exceptions import NoSuchWindowException, InvalidSessionIdException
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 
-import utils
 from GameStateForLeague import game_states, GameState
 from config import TOURNAMENT_CONFIG
-from utils import iniciar_driver, display_message
-from stats import process_stats_match
-from stats import process_stats_team
 from database import insert_resultado_final
-
-import time
-import gc
-from selenium.common.exceptions import WebDriverException
+from selenium_manager import SeleniumManager
+from stats import process_stats_match, process_stats_team
+from utils import display_message, format_team_name
 
 STR_SEARCH = "live"
 TIME_SLEEP = 750
 
+# ============================================================
+# TEMPOS IMPORTANTES
+# ============================================================
+TIMEOUT_TENTATIVA = 35  # tempo mínimo entre ciclos (~30s)
+TEMPO_JOGO_ANDAMENTO = 12 * 60  # 12 minutos
+STR_SKIP_MSG = "[INFO] Jogo em andamento, aguardando..."
 
-# --- Funções auxiliares --- #
-# noinspection GrazieInspection
-def acessar_url(driver, url, timeout=10, tentativas=2):
-    """
-    Abre a URL e aguarda carregamento real da página.
-    Verifica body + scripts.
-    Se driver travar (session lost), levanta erro para recriação externa.
-    """
 
-    for tentativa in range(1, tentativas + 1):
+# ============================================================
+# CONTROLE DE PAUSA DE 12 MIN NO INÍCIO DO JOGO
+# ============================================================
+def should_delay_due_match_start(tournament_id):
+    """Evita consultas enquanto o jogo está rolando nos primeiros 12 minutos."""
+    state = game_states.get(tournament_id)
 
-        try:
-            driver.set_page_load_timeout(timeout)
+    if state and state.sigla_estado_partida == "IP":  # IP = Início da Partida
+        elapsed = time.time() - state.last_start_time
 
-            # ---- Tenta abrir a página ----
-            driver.get(url)
-
-            # ---- Aguarda <body> ----
-            WebDriverWait(driver, timeout).until(
-                ec.presence_of_element_located((By.TAG_NAME, "body"))
-            )
-
-            # ---- Aguarda scripts carregarem ----
-            try:
-                WebDriverWait(driver, timeout).until(
-                    ec.presence_of_element_located((By.TAG_NAME, "script"))
-                )
-            except:
-                display_message(f"⚠️ Scripts incompletos em {url} (tentativa {tentativa}/{tentativas})")
-
-            return True  # Sucesso!
-
-        # ============================
-        # ❌ Sessão perdida → precisa recriar driver
-        # ============================
-        except (InvalidSessionIdException, NoSuchWindowException) as e:
-            raise WebDriverException("❌ Sessão perdida — reiniciar driver") from e
-
-        # ============================
-        # ❌ Timeout / Erros recuperáveis
-        # ============================
-        except Exception as e:
-            display_message(
-                f"⚠️ Erro ao carregar {url}: {str(e)} "
-                f"(tentativa {tentativa}/{tentativas})"
-            )
-
-            # Última tentativa → falha total
-            if tentativa == tentativas:
-                raise WebDriverException(f"Falha ao carregar página após {tentativas} tentativas: {url}")
-
-            # Aguarda alguns segundos antes de tentar de novo
-            time.sleep(2)
+        if elapsed < TEMPO_JOGO_ANDAMENTO:
+            falta = int(TEMPO_JOGO_ANDAMENTO - elapsed)
+            m = falta // 60
+            s = falta % 60
+            display_message(f"{STR_SKIP_MSG} Retorna em {m:02d}:{s:02d}")
+            return True
 
     return False
 
 
+# =====================================================================
+# BAIXAR JSON
+# =====================================================================
 def baixar_json_torneio(link_json, tries=2, timeout=10):
     for attempt in range(1, tries + 1):
         try:
             response = requests.get(link_json, timeout=timeout)
+
             if response.status_code == 200:
                 return response.json()
-            else:
-                display_message(f"Erro ao acessar {link_json}, status: {response.status_code}")
-                return None
+
+            display_message(f"Erro ao acessar {link_json}, status: {response.status_code}")
+            return None
+
         except requests.exceptions.Timeout:
             display_message(f"Timeout ao tentar acessar {link_json} ({attempt}/{tries})")
+
         except requests.exceptions.RequestException as e:
             display_message(f"Erro HTTP ao acessar {link_json} ({attempt}/{tries}): {str(e)}")
+
         except Exception as e:
             display_message(f"Erro inesperado ao baixar {link_json} ({attempt}/{tries}): {str(e)}")
+
         if attempt < tries:
             time.sleep(0.5)
+
     return None
 
 
+# =====================================================================
+# EXTRAI EVENTOS
+# =====================================================================
 def extrair_eventos(json_content):
     return json_content.get("events", {})
 
 
-# noinspection GrazieInspection
+# =====================================================================
+# BUSCA JSON DA LIGA
+# =====================================================================
 def get_json_content_for_league(html_source, tournament_id):
     soup = BeautifulSoup(html_source, 'html.parser')
 
     for tag_link in soup.find_all('link', href=True):
         href = tag_link['href'].strip()
 
-        if STR_SEARCH.lower() not in href.lower():
+        if STR_SEARCH not in href.lower():
             continue
 
-        # display_message(f"Consultando API candidate: {href} para buscar tournament {tournament_id}")
-        content_json = baixar_json_torneio(href)
-        if not content_json:
+        json_ret = baixar_json_torneio(href)
+        if not json_ret:
             continue
 
-        eventos = extrair_eventos(content_json)
+        eventos = extrair_eventos(json_ret)
+
         for ev in eventos.values():
             if str(ev.get("desc", {}).get("tournament")) == str(tournament_id):
-                # display_message(f"Encontrado JSON com tournament {tournament_id} em {href}")
-                return content_json
+                return json_ret
 
     return None
 
 
+# =====================================================================
+# PROCESSA EVENTOS DA LIGA
+# =====================================================================
 def processar_eventos(content_json, tournament_id, nome_liga, flg_stats):
     eventos = extrair_eventos(content_json)
-    for key, dados_evento in eventos.items():
-        if str(dados_evento.get("desc", {}).get("tournament")) == str(tournament_id):
-            if tournament_id not in game_states:
-                game_states[tournament_id] = GameState(key, tournament_id)
-            process_steps_game(dados_evento, key, game_states[tournament_id], nome_liga, flg_stats)
+
+    for key, evento in eventos.items():
+        if str(evento.get("desc", {}).get("tournament")) != str(tournament_id):
+            continue
+
+        if tournament_id not in game_states:
+            game_states[tournament_id] = GameState(key, tournament_id)
+
+        process_steps_game(evento, key, game_states[tournament_id], nome_liga, flg_stats)
 
 
+# =====================================================================
+# SKIP para evitar processamento contínuo após início da partida
+# =====================================================================
 def should_skip_liga_delay(tournament_id):
     state = game_states.get(tournament_id)
+
     if state and state.last_start_time:
-        elapsed = time.time() - state.last_start_time
-        if elapsed < TIME_SLEEP:
+        if (time.time() - state.last_start_time) < TIME_SLEEP:
             return True
 
     return False
 
 
-# FUNCAO PRINCIPAL
-# noinspection GrazieInspection
+# =====================================================================
+# PROCESSAMENTO PRINCIPAL DOS ESTADOS DA PARTIDA
+# =====================================================================
 def process_steps_game(json_evento, codigo_partida, state: GameState, nome_liga, flg_stats):
-    """  -----------------------------------------------------------------------------------------------------------"""
-    """ FUNCAO PRINCIPAL"""
-    """  -----------------------------------------------------------------------------------------------------------"""
-    # Obtém o 'status' e informações do evento
-    times = json_evento.get("desc", {}).get("competitors")
-    state.time_casa = utils.format_team_name(times[0].get("name", "time_casa"))
-    state.time_visitante = utils.format_team_name(times[1].get("name", "time_visitante"))
+    competitors = json_evento.get("desc", {}).get("competitors")
+    state.time_casa = format_team_name(competitors[0].get("name", "Casa"))
+    state.time_visitante = format_team_name(competitors[1].get("name", "Visitante"))
     state.match_status = json_evento.get("state", {}).get("match_status")
-
-    """ Processa os estados do jogo """
-    # Variaveis de configuracao
     state.nome_liga = nome_liga
 
-    # [PI] PARTIDA INICIADA
+    # ---------------- PARTIDA INICIADA ----------------
     if state.match_status == 6 and (state.sigla_estado_partida != "IP" and state.sigla_estado_partida):
-        state.last_start_time = time.time()
-
-        """  -----------------------------------------------------------------------------  ------------------------------"""
-        """ INICIO DA PARTIDA """
-        """  -----------------------------------------------------------------------------------------------------------"""
         state.codigo_partida_atual = codigo_partida
         state.sigla_estado_partida = "IP"
+        state.last_start_time = time.time()
 
-        # Mensagem de início de jogoAtual
-        message_inicio_partida = f"{state.nome_liga}: [Começou {state.time_casa} x {state.time_visitante}]"
-        display_message(message_inicio_partida)
+        display_message(f"{nome_liga}: [Começou {state.time_casa} x {state.time_visitante}]")
 
-    # [PF] PARTIDA FINALIZADA
+    # ---------------- PARTIDA FINALIZADA ----------------
     if state.match_status == 100 and (state.sigla_estado_partida != "PF" or not state.sigla_estado_partida):
         state.sigla_estado_partida = "PF"
-        """  -----------------------------------------------------------------------------------------------------------"""
-        """ FINAL DA PARTIDA """
-        """  -----------------------------------------------------------------------------------------------------------"""
-        # Atualiza o estado para "Partida Finalizada"
-        state.placar_casa = json_evento.get("score", {}).get("home_score", state.placar_casa)
-        state.placar_visitante = json_evento.get("score", {}).get("away_score", state.placar_visitante)
 
-        # Mensagem no console e log
+        state.placar_casa = json_evento.get("score", {}).get("home_score", 0)
+        state.placar_visitante = json_evento.get("score", {}).get("away_score", 0)
         state.placar_final = f"{state.placar_casa}x{state.placar_visitante}"
-        display_message(f"{state.nome_liga}: [Terminou. Código: {state.codigo_partida_atual} - "
-                        f"Placar final: {state.time_casa} {state.placar_casa} x {state.placar_visitante} {state.time_visitante}]")
 
+        display_message(
+            f"{nome_liga}: [Terminou. Código: {state.codigo_partida_atual} - "
+            f"Placar final: {state.time_casa} {state.placar_casa} x {state.placar_visitante} {state.time_visitante}]"
+        )
+
+        # Resultado
         if state.placar_casa > state.placar_visitante:
             state.resultado_partida = state.time_casa
-        if state.placar_casa < state.placar_visitante:
+        elif state.placar_visitante > state.placar_casa:
             state.resultado_partida = state.time_visitante
-        if state.placar_casa == state.placar_visitante:
+        else:
             state.resultado_partida = "Empate"
 
-        # Salva o resultado final no banco de dados
+        # Banco
         insert_resultado_final(
-            state.codigo_partida_atual, state.codigo_liga, state.nome_liga, state.time_casa, state.placar_casa,
-            state.time_visitante, state.placar_visitante, state.placar_final, state.resultado_partida)
+            state.codigo_partida_atual,
+            state.codigo_liga,
+            nome_liga,
+            state.time_casa,
+            state.placar_casa,
+            state.time_visitante,
+            state.placar_visitante,
+            state.placar_final,
+            state.resultado_partida
+        )
 
-        # Processa estatísticas se habilitado
+        # Stats
         if flg_stats:
             process_stats_match(codigo_partida, state.time_casa, state.time_visitante)
             process_stats_team(codigo_partida, state.time_casa)
             process_stats_team(codigo_partida, state.time_visitante)
 
-        # Reset de variáveis no estado
         GameState.reset_state(state)
         state.sigla_estado_partida = "PF"
 
 
-if __name__ == "__main__":
-    print("__main__")
-
-
-# --- Loop principal --- #
+# ============================================================
+# MAIN OTIMIZADA
+# ============================================================
 def main():
-    driver = iniciar_driver(headless=True)  # inicia apenas uma vez
-    iteration = 0
-    RESTART_INTERVAL = 30  # número de ciclos antes de reiniciar
+
+    # ------------------------------
+    # Inicia o Selenium Manager
+    # ------------------------------
+    selenium = SeleniumManager(headless=False)
+    selenium.start()
+    driver = selenium.get_driver()
 
     while True:
-        iteration += 1
-        ciclo_inicio = time.time()
+        inicio = time.time()
 
-        for tournament_id, config in TOURNAMENT_CONFIG.items():
-            liga_inicio = time.time()
+        # ------------------------------
+        # LOOP DE TODAS AS LIGAS
+        # ------------------------------
+        for tournament_id, cfg in TOURNAMENT_CONFIG.items():
+
+            url = cfg["url"]
+            nome_liga = cfg["name"]
+            flg_stats = cfg.get("stats", False)
+
+            # ----------------------------------------
+            # 1) VERIFICA SE DEVE PULAR (JOGO EM CURSO)
+            # ----------------------------------------
+            if should_delay_due_match_start(tournament_id):
+                continue
+
+            # ----------------------------------------
+            # 2) GARANTE QUE O DRIVER ESTÁ VIVO
+            # ----------------------------------------
+            if not selenium.is_driver_alive():
+                display_message("[INFO] Driver caiu. Reiniciando...")
+                selenium.restart_driver()
+                time.sleep(1)
+                driver = selenium.get_driver()
+
+            # ----------------------------------------
+            # 3) ABRE A PÁGINA DA LIGA
+            # ----------------------------------------
             try:
-                # 🚀 Checa antes de 38385127 URL → performance melhor
-                if should_skip_liga_delay(tournament_id):
-                    display_message(
-                        f"Jogo da Liga {config['name']} em andamento..."
-                    )
-                    driver.quit()
-                    time.sleep(TIME_SLEEP)
-                    driver = iniciar_driver(headless=True)  # inicia apenas uma vez
-                    continue
+                driver.get(url)
+            except TimeoutException:
+                display_message(f"[WARN] Timeout ao carregar {nome_liga}")
+                continue
+            except Exception as e:
+                display_message(f"[ERRO] Falha ao abrir página da liga {nome_liga}: {e}")
+                continue
 
-                try:
-                    acessar_url(driver, config["url"])
-                    # segue fluxo normal da liga...
-                except WebDriverException as e:
-                    msg = str(e).lower()
-                    if "driver_morto" in msg or "invalid session" in msg:
-                        display_message("Recriando o driver por falha de sessão...")
-                        try:
-                            driver.quit()
-                        except:
-                            pass
-                        driver = iniciar_driver(headless=True)  # ou False conforme seu uso
-                        # opcional: tentar acessar a URL novamente aqui se quiser
-                    else:
-                        display_message(f"Erro inesperado: {e}")
+            page_html = driver.page_source
+            if not page_html:
+                display_message(f"[ERRO] Página vazia para {nome_liga}")
+                continue
 
-                html_source = driver.page_source
+            # ----------------------------------------
+            # 4) EXTRAI JSON DA LIGA
+            # ----------------------------------------
+            json_content = get_json_content_for_league(page_html, tournament_id)
+            if not json_content:
+                display_message(f"[ERRO] {nome_liga}: JSON da liga não encontrado.")
+                continue
 
-                content_json = get_json_content_for_league(html_source, tournament_id)
-
-                if content_json:
-                    processar_eventos(content_json, tournament_id, config['name'], config["stats"])
-
-                # 🔹 Limpa cookies e libera memória
-                driver.delete_all_cookies()
-                del html_source, content_json
-
-            except WebDriverException as inner_e:
-                msg = str(inner_e)
-                if "Browsing context" in msg or "InvalidSessionID" in msg:
-                    display_message("Driver perdeu contexto, reiniciando...")
-                    try:
-                        driver.quit()
-                    except:
-                        pass
-                    time.sleep(1)
-                    driver = iniciar_driver(headless=True)
-                else:
-                    display_message(f"Erro ao processar liga {config['name']}: {inner_e}")
-                    time.sleep(1)
-
-            liga_duracao = time.time() - liga_inicio
-            display_message(f"Processamento da Liga {config['name']}: {liga_duracao:.2f} segundos")
-
-        # 🔄 reinicia driver a cada X ciclos (não a cada loop!)
-        if iteration % RESTART_INTERVAL == 0:
-            display_message(f"Reiniciando driver após {RESTART_INTERVAL} ciclos...")
+            # ----------------------------------------
+            # 5) PROCESSA OS EVENTOS (SEUS ESTADOS)
+            # ----------------------------------------
             try:
-                driver.quit()
-            except:
-                pass
-            driver = iniciar_driver(headless=True)
+                processar_eventos(json_content, tournament_id, nome_liga, flg_stats)
+            except Exception as e:
+                display_message(f"[ERRO] processar_eventos falhou em {nome_liga}: {e}")
 
-        # 🔹 Força limpeza de memória
-        gc.collect()
+        # ----------------------------------------
+        # CONTROLE PARA NÃO EXECUTAR ANTES DE ~30s
+        # ----------------------------------------
+        tempo_exec = time.time() - inicio
+        if tempo_exec < TIMEOUT_TENTATIVA:
+            time.sleep(TIMEOUT_TENTATIVA - tempo_exec)
 
-        ciclo_duracao = time.time() - ciclo_inicio
-        display_message(f"Processamento Total: {ciclo_duracao:.2f} segundos")
-        print("*" * 79)
 
-
+# ============================================================
+# START
+# ============================================================
 if __name__ == "__main__":
     main()
