@@ -4,8 +4,7 @@ from selenium.common.exceptions import WebDriverException
 
 
 class SeleniumManager:
-    def __init__(self, headless=True):
-        self.headless = headless
+    def __init__(self):
         self.driver = None
 
     # ------------------------------------------------------
@@ -19,12 +18,15 @@ class SeleniumManager:
 
         options = Options()
 
-        if self.headless:
-            options.add_argument("--headless")
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
 
         # 🔧 Melhor estabilidade no Firefox
         options.set_preference("dom.webdriver.enabled", False)
-        options.set_preference("media.peerconnection.enabled", False)
+        options.set_preference("media.connection.enabled", False)
         options.set_preference("useAutomationExtension", False)
 
         # 🔧 Reduz falhas de renderização e crash ao acessar páginas JS pesadas

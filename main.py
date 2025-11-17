@@ -208,7 +208,7 @@ LOG_TEMPO = True  # deixe False para desligar logs de tempo
 # MAIN OTIMIZADA SUPER RÁPIDA (3s por ciclo)
 # ============================================================
 def main():
-    selenium = SeleniumManager(headless=False)
+    selenium = SeleniumManager()
     selenium.start()
     driver = selenium.get_driver()
 
