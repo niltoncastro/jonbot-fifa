@@ -17,7 +17,8 @@ TIME_SLEEP = 750
 # ============================================================
 # TEMPOS IMPORTANTES
 # ============================================================
-TIMEOUT_TENTATIVA = 35  # tempo mínimo entre ciclos (~30s)
+TIMEOUT_TENTATIVA = 5  # tempo mínimo entre ciclos (~30s)
+INTERVALO_LOOP = 3  # intervalo mínimo entre ciclos (quando não em pausa)
 TEMPO_JOGO_ANDAMENTO = 12 * 60  # 12 minutos
 STR_SKIP_MSG = "[INFO] Jogo em andamento, aguardando..."
 
@@ -195,86 +196,133 @@ def process_steps_game(json_evento, codigo_partida, state: GameState, nome_liga,
 
 
 # ============================================================
-# MAIN OTIMIZADA
+# MAIN OTIMIZADA SUPER RÁPIDA (3s por ciclo)
+# ============================================================
+# ============================================================
+# CONFIGURAÇÃO DE LOG
+# ============================================================
+LOG_TEMPO = True  # deixe False para desligar logs de tempo
+
+
+# ============================================================
+# MAIN OTIMIZADA SUPER RÁPIDA (3s por ciclo)
 # ============================================================
 def main():
-
-    # ------------------------------
-    # Inicia o Selenium Manager
-    # ------------------------------
     selenium = SeleniumManager(headless=False)
     selenium.start()
     driver = selenium.get_driver()
 
-    while True:
-        inicio = time.time()
+    # controla se já fizemos pausa para cada liga
+    pausa_em_andamento = {}  # tournament_id -> bool
 
-        # ------------------------------
-        # LOOP DE TODAS AS LIGAS
-        # ------------------------------
+    while True:
+        ciclo_inicio = time.time()
+
+        # percorre ligas
         for tournament_id, cfg in TOURNAMENT_CONFIG.items():
+            liga_inicio = time.time()
 
             url = cfg["url"]
-            nome_liga = cfg["name"]
+            nome_liga = cfg.get("name") or cfg.get("nome_liga") or str(tournament_id)
             flg_stats = cfg.get("stats", False)
 
-            # ----------------------------------------
-            # 1) VERIFICA SE DEVE PULAR (JOGO EM CURSO)
-            # ----------------------------------------
-            if should_delay_due_match_start(tournament_id):
-                continue
-
-            # ----------------------------------------
-            # 2) GARANTE QUE O DRIVER ESTÁ VIVO
-            # ----------------------------------------
+            # Verifica se o driver está vivo, recria se necessário
             if not selenium.is_driver_alive():
                 display_message("[INFO] Driver caiu. Reiniciando...")
                 selenium.restart_driver()
                 time.sleep(1)
                 driver = selenium.get_driver()
 
-            # ----------------------------------------
-            # 3) ABRE A PÁGINA DA LIGA
-            # ----------------------------------------
+            # carregar página
             try:
+                driver.set_page_load_timeout(10)
                 driver.get(url)
             except TimeoutException:
                 display_message(f"[WARN] Timeout ao carregar {nome_liga}")
                 continue
             except Exception as e:
-                display_message(f"[ERRO] Falha ao abrir página da liga {nome_liga}: {e}")
+                display_message(f"[ERRO] Falha ao abrir {nome_liga}: {e}")
                 continue
 
-            page_html = driver.page_source
-            if not page_html:
-                display_message(f"[ERRO] Página vazia para {nome_liga}")
+            html = driver.page_source
+            if not html:
+                display_message(f"[ERRO] HTML vazio para {nome_liga}")
                 continue
 
-            # ----------------------------------------
-            # 4) EXTRAI JSON DA LIGA
-            # ----------------------------------------
-            json_content = get_json_content_for_league(page_html, tournament_id)
+            # extrai JSON
+            json_content = get_json_content_for_league(html, tournament_id)
             if not json_content:
-                display_message(f"[ERRO] {nome_liga}: JSON da liga não encontrado.")
+                if LOG_TEMPO:
+                    dur_liga = time.time() - liga_inicio
+                    display_message(f"[TEMPO] {nome_liga}: {dur_liga:.2f} segundos (sem JSON)")
                 continue
 
-            # ----------------------------------------
-            # 5) PROCESSA OS EVENTOS (SEUS ESTADOS)
-            # ----------------------------------------
+            # processa eventos (vai atualizar game_states)
             try:
                 processar_eventos(json_content, tournament_id, nome_liga, flg_stats)
             except Exception as e:
                 display_message(f"[ERRO] processar_eventos falhou em {nome_liga}: {e}")
+                continue
 
-        # ----------------------------------------
-        # CONTROLE PARA NÃO EXECUTAR ANTES DE ~30s
-        # ----------------------------------------
-        tempo_exec = time.time() - inicio
-        if tempo_exec < TIMEOUT_TENTATIVA:
-            time.sleep(TIMEOUT_TENTATIVA - tempo_exec)
+            # ------------------------------------------------------
+            # 5) PAUSA AUTOMÁTICA — SOMENTE 1 VEZ POR JOGO
+            # ------------------------------------------------------
+            st = game_states.get(tournament_id)
+
+            if st and st.sigla_estado_partida == "IP":
+
+                # estado inicial = nunca pausou
+                if pausa_em_andamento.get(tournament_id) is None:
+                    pausa_em_andamento[tournament_id] = False
+
+                # Se ainda não pausou este jogo, pausar agora
+                if pausa_em_andamento[tournament_id] is False:
+
+                    display_message(f"[INFO] {nome_liga}: Jogo em andamento — pausando por 12:00")
+
+                    pausa_em_andamento[tournament_id] = True  # impede repetição
+
+                    # libera driver
+                    try:
+                        selenium.quit()
+                    except:
+                        pass
+
+                    # pausa de 12 minutos
+                    time.sleep(12 * 60)
+
+                    # após pausa → recria driver
+                    selenium.start()
+                    driver = selenium.get_driver()
+
+                    display_message(f"[INFO] Processo retomado após pausa do jogo {nome_liga}.")
+
+                    # volta início para reprocessar
+                    continue
+
+            else:
+                # jogo finalizado ou não iniciado → reseta pausa
+                pausa_em_andamento[tournament_id] = False
+
+            # ------------------------------------------------------
+            # Log tempo por liga
+            # ------------------------------------------------------
+            if LOG_TEMPO:
+                dur_liga = time.time() - liga_inicio
+                display_message(f"[TEMPO] {nome_liga}: {dur_liga:.2f} segundos")
+
+        # ------------------------------------------------------
+        # Log tempo total do ciclo
+        # ------------------------------------------------------
+        ciclo_dur = time.time() - ciclo_inicio
+        if LOG_TEMPO:
+            display_message(f"[TEMPO] Ciclo completo: {ciclo_dur:.2f} segundos")
+
+        # respeita intervalo mínimo
+        if ciclo_dur < INTERVALO_LOOP:
+            time.sleep(INTERVALO_LOOP - ciclo_dur)
 
 
-# ============================================================
 # START
 # ============================================================
 if __name__ == "__main__":
