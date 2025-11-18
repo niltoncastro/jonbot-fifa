@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import WebDriverException
+import traceback
 
 
 class SeleniumManager:
@@ -8,88 +9,94 @@ class SeleniumManager:
         self.driver = None
 
     # ------------------------------------------------------
-    # INICIA O DRIVER
+    # INICIAR DRIVER
     # ------------------------------------------------------
-    # noinspection AiaStyle
     def start(self):
-        """Inicia o driver apenas uma vez e retorna o mesmo driver."""
         if self.driver is not None:
             return self.driver
 
         options = Options()
+        options.headless = True
 
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--window-size=1920,1080")
+        # ESSENCIAIS PARA VPS / HEADLESS
+        options.set_preference("browser.cache.disk.enable", False)
+        options.set_preference("browser.cache.memory.enable", False)
+        options.set_preference("browser.cache.offline.enable", False)
+        options.set_preference("network.http.use-cache", False)
 
-        # 🔧 Melhor estabilidade no Firefox
-        options.set_preference("dom.webdriver.enabled", False)
-        options.set_preference("media.connection.enabled", False)
-        options.set_preference("useAutomationExtension", False)
+        options.set_preference("browser.tabs.unloadOnLowMemory", False)
+        options.set_preference("browser.sessionstore.resume_from_crash", False)
 
-        # 🔧 Reduz falhas de renderização e crash ao acessar páginas JS pesadas
+        # EVITA CRASH DO MARIONETTE
+        options.set_preference("marionette.force-local", True)
+        options.set_preference("dom.ipc.processCount", 1)
+
+        # EVITA QUEBRA DE HEADLESS
+        options.set_preference("gfx.webrender.all", False)
+        options.set_preference("layers.acceleration.disabled", True)
+
+        # USER AGENT FIX
         options.set_preference(
             "general.useragent.override",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0"
+            "Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/140.0"
         )
+
+        # TELA FIXA
+        options.add_argument("--width=1920")
+        options.add_argument("--height=1080")
+
+        # ARGS OPCIONAIS
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
 
         try:
             self.driver = webdriver.Firefox(options=options)
         except Exception as e:
-            print(f"[ERRO] Falha ao iniciar Firefox: {e}")
+            print("\n[ERRO AO INICIAR FIREFOX]")
+            print(str(e))
+            print(traceback.format_exc())
             self.driver = None
 
         return self.driver
 
     # ------------------------------------------------------
-    # RETORNA O DRIVER ATUAL
-    # ------------------------------------------------------
     def get_driver(self):
         return self.driver
 
     # ------------------------------------------------------
-    # TESTA SE O DRIVER ESTÁ VIVO
+    # TESTE SE DRIVER ESTÁ VIVO
     # ------------------------------------------------------
     def is_driver_alive(self):
-        """Retorna True se o driver estiver funcionando sem travar."""
         if self.driver is None:
             return False
 
         try:
-            # Teste leve e seguro (não gera warning)
             self.driver.execute_script("return document.readyState")
             return True
-
-        except WebDriverException:
-            return False
         except Exception:
             return False
 
     # ------------------------------------------------------
-    # REINICIA O DRIVER
+    # REINICIAR DRIVER
     # ------------------------------------------------------
     def restart_driver(self):
-        """Fecha o driver atual e recria um novo."""
         try:
             if self.driver:
                 self.driver.quit()
-        except Exception:
+        except:
             pass
 
         self.driver = None
         return self.start()
 
     # ------------------------------------------------------
-    # ENCERRA O DRIVER
+    # ENCERRAR DRIVER
     # ------------------------------------------------------
     def quit(self):
-        """Fecha completamente o driver."""
         if self.driver:
             try:
                 self.driver.quit()
-            except Exception:
+            except:
                 pass
 
         self.driver = None
