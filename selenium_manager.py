@@ -46,6 +46,7 @@ class SeleniumManager:
         options.add_argument("--height=1080")
 
         # ARGS OPCIONAIS
+        options.add_argument("--headless")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
 
