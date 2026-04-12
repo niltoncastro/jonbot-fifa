@@ -1,5 +1,5 @@
 from collections import defaultdict, Counter
-from statistics import mean
+from statistics import mean, stdev
 import pandas as pd
 
 from config import data_hora_format
@@ -77,8 +77,9 @@ def process_stats_match(codigo_partida, time_casa, time_visitante):
     # Reordenar colunas
     final_consolidated = final_consolidated[[
         "time_casa", "time_visitante", "resultado", "qtd_total", "perc_total", "qtd_parcial", "perc_parcial",
-        "dif_perc_total_parcial", "seq_atual", "seq_media", "seq_maxima", "dif_seq_media_atual", "dif_seq_media_max",
-        "atr_atual", "atr_media", "atr_maximo", "dif_atr_media_atual", "dif_atr_media_max", "data_criacao"
+        "dif_perc_total_parcial", "seq_atual", "seq_media", "seq_maxima", "seq_desvio", "dif_seq_media_atual",
+        "dif_seq_media_max", "atr_atual", "atr_media", "atr_maximo", "atr_desvio", "dif_atr_media_atual",
+        "dif_atr_media_max", "data_criacao"
     ]]
 
     # Salvar os dados no banco de dados
@@ -96,11 +97,13 @@ def process_stats_match(codigo_partida, time_casa, time_visitante):
             seq_atual=row["seq_atual"],
             seq_media=row["seq_media"],
             seq_maxima=row["seq_maxima"],
+            seq_desvio=row["seq_desvio"],
             dif_seq_media_atual=row["dif_seq_media_atual"],
             dif_seq_media_max=row["dif_seq_media_max"],
             atr_atual=row["atr_atual"],
             atr_media=row["atr_media"],
             atr_maximo=row["atr_maximo"],
+            atr_desvio=row["atr_desvio"],
             dif_atr_media_atual=row["dif_atr_media_atual"],
             dif_atr_media_max=row["dif_atr_media_max"],
             data_criacao=row["data_criacao"]
@@ -149,8 +152,9 @@ def process_stats_team(codigo_partida, nome_time):
     # Reordenar colunas
     final_consolidated = consolidated[[
         "nome_time", "resultado", "qtd_total", "perc_total", "qtd_parcial", "perc_parcial",
-        "dif_perc_total_parcial", "seq_atual", "seq_media", "seq_maxima", "dif_seq_media_atual", "dif_seq_media_max",
-        "atr_atual", "atr_media", "atr_maximo", "dif_atr_media_atual", "dif_atr_media_max", "data_criacao"
+        "dif_perc_total_parcial", "seq_atual", "seq_media", "seq_maxima", "seq_desvio", "dif_seq_media_atual",
+        "dif_seq_media_max", "atr_atual", "atr_media", "atr_maximo", "atr_desvio", "dif_atr_media_atual",
+        "dif_atr_media_max", "data_criacao"
     ]]
 
     # Salvar os dados no banco de dados
@@ -167,11 +171,13 @@ def process_stats_team(codigo_partida, nome_time):
             seq_atual=row["seq_atual"],
             seq_media=row["seq_media"],
             seq_maxima=row["seq_maxima"],
+            seq_desvio=row["seq_desvio"],
             dif_seq_media_atual=row["dif_seq_media_atual"],
             dif_seq_media_max=row["dif_seq_media_max"],
             atr_atual=row["atr_atual"],
             atr_media=row["atr_media"],
             atr_maximo=row["atr_maximo"],
+            atr_desvio=row["atr_desvio"],
             dif_atr_media_atual=row["dif_atr_media_atual"],
             dif_atr_media_max=row["dif_atr_media_max"],
             data_criacao=row["data_criacao"]
@@ -231,6 +237,7 @@ def stats_delays_by_match(results_list):
             max_delay_current = select_max_atraso_partida(time_casa, time_visitante, resultado)
 
             mean_delay = int(mean(delays)) if delays else 0
+            desvio_delay = round(stdev(delays), 2) if len(delays) >= 2 else 0
             dif_atr_media_atual = mean_delay - current_delay
             dif_atr_media_max = max_delay - mean_delay
 
@@ -244,6 +251,7 @@ def stats_delays_by_match(results_list):
                 "atr_atual": current_delay,
                 "atr_media": mean_delay,
                 "atr_maximo": max_delay,
+                "atr_desvio": desvio_delay,
                 "dif_atr_media_atual": dif_atr_media_atual,
                 "dif_atr_media_max": dif_atr_media_max,
             })
@@ -296,6 +304,7 @@ def stats_delays_by_team(results_list):
             max_delay = max(delays) if delays else 0
             max_delay_current = select_max_atraso_time(time, resultado)
             mean_delay = int(mean(delays)) if delays else 0
+            desvio_delay = round(stdev(delays), 2) if len(delays) >= 2 else 0
             dif_atr_media_atual = mean_delay - current_delay
             dif_atr_media_max = max_delay - mean_delay
 
@@ -308,6 +317,7 @@ def stats_delays_by_team(results_list):
                 "atr_atual": current_delay,
                 "atr_media": mean_delay,
                 "atr_maximo": max_delay,
+                "atr_desvio": desvio_delay,
                 "dif_atr_media_atual": dif_atr_media_atual,
                 "dif_atr_media_max": dif_atr_media_max,
             })
@@ -470,6 +480,7 @@ def stats_sequences_by_match(results_list):
             # Only use the sequence lengths (ignore occurrences) for these calculations
             current_sequence = current_streak if resultado == last_result else 0
             mean_sequence = int(mean(sequences)) if sequences else 0
+            desvio_sequence = round(stdev(sequences), 2) if len(sequences) >= 2 else 0
             max_sequence = max(sequences) if sequences else 0
             max_sequence_current = select_max_seq_partida(time_casa, time_visitante, resultado)
             dif_seq_media_atual = mean_sequence - current_sequence
@@ -485,6 +496,7 @@ def stats_sequences_by_match(results_list):
                 "seq_atual": current_sequence,
                 "seq_media": mean_sequence,
                 "seq_maxima": max_sequence,
+                "seq_desvio": desvio_sequence,
                 "dif_seq_media_atual": dif_seq_media_atual,
                 "dif_seq_media_max": dif_seq_media_max
             })
@@ -530,6 +542,7 @@ def stats_sequences_by_team(results_list):
             # Only use the sequence lengths (ignore occurrences) for these calculations
             current_sequence = current_streak if resultado == last_result else 0
             mean_sequence = int(mean(sequences)) if sequences else 0
+            desvio_sequence = round(stdev(sequences), 2) if len(sequences) >= 2 else 0
             max_sequence = max(sequences) if sequences else 0
             max_sequence_current = select_max_seq_time(time, resultado)
             dif_seq_media_atual = mean_sequence - current_sequence
@@ -544,6 +557,7 @@ def stats_sequences_by_team(results_list):
                 "seq_atual": current_sequence,
                 "seq_media": mean_sequence,
                 "seq_maxima": max_sequence,
+                "seq_desvio": desvio_sequence,
                 "dif_seq_media_atual": dif_seq_media_atual,
                 "dif_seq_media_max": dif_seq_media_max
             })

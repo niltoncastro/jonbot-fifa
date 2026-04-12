@@ -89,8 +89,8 @@ def select_resultados_final_time(nome_time):
 
 def insert_estatistica_partida(codigo_partida, time_casa, time_visitante, resultado, qtd_total, perc_total,
                                qtd_parcial, perc_parcial, dif_perc_total_parcial, seq_atual, seq_media, seq_maxima,
-                               dif_seq_media_atual, dif_seq_media_max, atr_atual, atr_media, atr_maximo,
-                               dif_atr_media_atual, dif_atr_media_max, data_criacao):
+                               seq_desvio, dif_seq_media_atual, dif_seq_media_max, atr_atual, atr_media, atr_maximo,
+                               atr_desvio, dif_atr_media_atual, dif_atr_media_max, data_criacao):
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -125,12 +125,12 @@ def insert_estatistica_partida(codigo_partida, time_casa, time_visitante, result
         sql_insert_estatistica_partida = f"""
         INSERT INTO fifa_estatisticas_partida (codigo_partida, time_casa, time_visitante, resultado, qtd_total, perc_total, qtd_parcial,
                             perc_parcial, dif_perc_total_parcial, dif_perc_total_parcial_min, dif_perc_total_parcial_min_atual,
-                            seq_atual, seq_media, seq_maxima, dif_seq_media_atual, dif_seq_media_max, atr_atual, atr_media, 
-                            atr_maximo, dif_atr_media_atual, dif_atr_media_max, data_criacao) VALUES
+                            seq_atual, seq_media, seq_maxima, seq_desvio, dif_seq_media_atual, dif_seq_media_max, atr_atual, atr_media,
+                            atr_maximo, atr_desvio, dif_atr_media_atual, dif_atr_media_max, data_criacao) VALUES
              ('{codigo_partida}', '{time_casa}', '{time_visitante}', '{resultado}', {qtd_total}, {perc_total}, {qtd_parcial},
               {perc_parcial}, {dif_perc_total_parcial}, {dif_perc_total_parcial_min}, {dif_perc_total_parcial_min_atual},
-              {seq_atual}, {seq_media}, {seq_maxima}, {dif_seq_media_atual}, {dif_seq_media_max}, {atr_atual}, {atr_media},
-              {atr_maximo}, {dif_atr_media_atual}, {dif_atr_media_max}, '{data_criacao}')"""
+              {seq_atual}, {seq_media}, {seq_maxima}, {seq_desvio}, {dif_seq_media_atual}, {dif_seq_media_max}, {atr_atual}, {atr_media},
+              {atr_maximo}, {atr_desvio}, {dif_atr_media_atual}, {dif_atr_media_max}, '{data_criacao}')"""
 
         cursor.execute(sql_insert_estatistica_partida)
 
@@ -264,8 +264,8 @@ def select_max_atraso_time(time, resultado):
 # noinspection GrazieInspection
 def insert_estatistica_time(codigo_partida, nome_time, resultado, qtd_total, perc_total, qtd_parcial,
                             perc_parcial, dif_perc_total_parcial, seq_atual, seq_media, seq_maxima,
-                            dif_seq_media_atual, dif_seq_media_max, atr_atual, atr_media, atr_maximo,
-                            dif_atr_media_atual, dif_atr_media_max, data_criacao):
+                            seq_desvio, dif_seq_media_atual, dif_seq_media_max, atr_atual, atr_media, atr_maximo,
+                            atr_desvio, dif_atr_media_atual, dif_atr_media_max, data_criacao):
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -298,12 +298,12 @@ def insert_estatistica_time(codigo_partida, nome_time, resultado, qtd_total, per
 
         sql_insert_estatistica_time = f"""INSERT INTO fifa_estatisticas_time (codigo_partida, time, resultado, qtd_total, perc_total, qtd_parcial,
               perc_parcial, dif_perc_total_parcial, dif_perc_total_parcial_min, dif_perc_total_parcial_min_atual,
-              seq_atual, seq_media, seq_maxima, dif_seq_media_atual, dif_seq_media_max, atr_atual, atr_media, atr_maximo, 
-              dif_atr_media_atual, dif_atr_media_max, data_criacao) VALUES
+              seq_atual, seq_media, seq_maxima, seq_desvio, dif_seq_media_atual, dif_seq_media_max, atr_atual, atr_media, atr_maximo,
+              atr_desvio, dif_atr_media_atual, dif_atr_media_max, data_criacao) VALUES
               ('{codigo_partida}', '{nome_time}', '{resultado}', {qtd_total}, {perc_total}, {qtd_parcial},
-                {perc_parcial}, {dif_perc_total_parcial}, {dif_perc_total_parcial_min}, {dif_perc_total_parcial_min_atual}, 
-                {seq_atual}, {seq_media}, {seq_maxima}, {dif_seq_media_atual}, {dif_seq_media_max}, {atr_atual}, {atr_media}, 
-                {atr_maximo}, {dif_atr_media_atual}, {dif_atr_media_max}, '{data_criacao}') """
+                {perc_parcial}, {dif_perc_total_parcial}, {dif_perc_total_parcial_min}, {dif_perc_total_parcial_min_atual},
+                {seq_atual}, {seq_media}, {seq_maxima}, {seq_desvio}, {dif_seq_media_atual}, {dif_seq_media_max}, {atr_atual}, {atr_media},
+                {atr_maximo}, {atr_desvio}, {dif_atr_media_atual}, {dif_atr_media_max}, '{data_criacao}') """
         
         cursor.execute(sql_insert_estatistica_time)
         conn.commit()
